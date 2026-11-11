@@ -19,15 +19,63 @@ class Logic
         optimization = (*config)("Bot", "Optimization");
     }
 
-    vector<move_pos> find_best_turns(const bool color)
-    {
-        // ЭТАП 1: прежняя реализация удалена; новый алгоритм будет добавлен на этапе 2.
-        return {};
+    // Формируем все допустимые полные ходы и выбираем лучший при помощи минимакса.
+    // Одно взятие с продолжениями считается ОДНИМ ходом, как требуют правила шашек.
+    vector<move_pos> find_best_turns(const bool color) {
+        const auto position = board->get_board();
+        auto candidates = collect_complete_turns(position, color);
+        if (candidates.empty()) return {};
+
+        const size_t limit = static_cast<size_t>(std::max(0, Max_depth)) + 1;
+        double best_value = -INF - 1.0;
+        vector<move_pos> result;
+        double alpha = -INF - 1.0;
+        const double beta = INF + 1.0;
+
+        for (const auto &candidate : candidates) {
+            // После полного хода очередь переходит к сопернику.
+            const double score = find_best_turns_rec(candidate.position, !color, color,
+                                                     1, limit, alpha, beta);
+            if (result.empty() || score > best_value) {
+                best_value = score;
+                result = candidate.path;
+            }
+            alpha = std::max(alpha, best_value);
+        }
+        return result;
     }
 
 private:
     // Создаём НОВУЮ позицию после одного шага: взятие, превращение в дамку, перенос фигуры.
     // Исходный массив остаётся неизменным — это важно для перебора альтернатив.
+
+    // Итог одного ПОЛНОГО хода, в том числе нескольких последовательных взятий.
+    struct CompleteTurn {
+        vector<vector<POS_T>> position;
+        vector<move_pos> path;
+    };
+
+    // Раскрываем все допустимые ходы текущего игрока.
+    // Правило обязательного взятия уже обеспечивается find_turns(color, position).
+    vector<CompleteTurn> collect_complete_turns(const vector<vector<POS_T>> &position,
+                                                bool active_color) {
+        find_turns(active_color, position);
+        const auto initial_moves = turns; // Копируем до запуска рекурсии.
+        const bool must_capture = have_beats;
+        vector<CompleteTurn> result;
+        for (const auto &step : initial_moves) {
+            vector<move_pos> path{step};
+            const auto after = make_turn(position, step);
+            if (must_capture) {
+                // Одной шашкой может потребоваться совершить несколько взятий подряд.
+                find_first_best_turn(after, step.x2, step.y2, path, result);
+            } else {
+                result.push_back({after, path});
+            }
+        }
+        return result;
+    }
+
     vector<vector<POS_T>> make_turn(vector<vector<POS_T>> mtx, move_pos turn) const
     {
         if (turn.xb != -1)
@@ -77,18 +125,52 @@ private:
         return (b + bq * q_coef) / (w + wq * q_coef);
     }
 
-    double find_first_best_turn(vector<vector<POS_T>> mtx, const bool color, const POS_T x, const POS_T y, size_t state,
-                                double alpha = -1)
-    {
-        // ЭТАП 1: прежняя реализация удалена; новый алгоритм будет добавлен на этапе 2.
-        return 0.0;
+    // Достраиваем обязательную серию взятий одной шашкой.
+    // До завершения всей серии право хода сопернику не передаётся.
+    void find_first_best_turn(const vector<vector<POS_T>> &position, POS_T x, POS_T y,
+                              vector<move_pos> &path, vector<CompleteTurn> &result) {
+        find_turns(x, y, position);
+        const auto continuations = turns; // Сохраняем: следующий рекурсивный вызов изменит turns.
+        if (!have_beats) {
+            result.push_back({position, path});
+            return;
+        }
+        for (const auto &step : continuations) {
+            path.push_back(step);
+            find_first_best_turn(make_turn(position, step), step.x2, step.y2, path, result);
+            path.pop_back(); // Откат ветки перебора.
+        }
     }
 
-    double find_best_turns_rec(vector<vector<POS_T>> mtx, const bool color, const size_t depth, double alpha = -1,
-                               double beta = INF + 1, const POS_T x = -1, const POS_T y = -1)
-    {
-        // ЭТАП 1: прежняя реализация удалена; новый алгоритм будет добавлен на этапе 2.
-        return 0.0;
+    // Минимакс: наш бот максимизирует оценку, соперник минимизирует её.
+    // alpha и beta задают границы отсечения невыгодных ветвей дерева поиска.
+    double find_best_turns_rec(const vector<vector<POS_T>> &position, bool active_color,
+                               bool bot_color, size_t depth, size_t limit,
+                               double alpha, double beta) {
+        // Глубина считается по законченным ходам, а не отдельным прыжкам при взятии.
+        const auto candidates = collect_complete_turns(position, active_color);
+        if (candidates.empty()) {
+            // Игрок без допустимых ходов проигрывает независимо от числа шашек.
+            return (active_color == bot_color) ? 0.0 : double(INF);
+        }
+        if (depth >= limit) return calc_score(position, bot_color);
+
+        const bool maximizing = (active_color == bot_color);
+        double best = maximizing ? -INF - 1.0 : INF + 1.0;
+        for (const auto &candidate : candidates) {
+            const double score = find_best_turns_rec(candidate.position, !active_color,
+                                                     bot_color, depth + 1, limit, alpha, beta);
+            if (maximizing) {
+                best = std::max(best, score);
+                alpha = std::max(alpha, best);
+            } else {
+                best = std::min(best, score);
+                beta = std::min(beta, best);
+            }
+            // O0 - полный перебор, O1 - альфа-бета отсечение.
+            if (optimization != "O0" && alpha >= beta) break;
+        }
+        return best;
     }
 
 public:
@@ -243,9 +325,9 @@ private:
     // Режим оптимизации: O0 без отсечения, остальные режимы с alpha-beta.
     string optimization;
     // Хранит шаги оптимального пути в исходной реализации (до этапа 2).
-    vector<move_pos> next_move;
+
     // Хранит индексы продолжений лучшего хода в исходной реализации (до этапа 2).
-    vector<int> next_best_state;
+
     // Ссылка на игровую доску (не владеем объектом).
     Board *board;
     // Ссылка на настройки игры (не владеем объектом).
