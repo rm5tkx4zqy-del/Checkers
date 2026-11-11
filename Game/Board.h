@@ -15,6 +15,7 @@
 #endif
 
 using namespace std;
+// Хранит позицию и историю игры, управляет окном SDL и рисует интерфейс.
 
 class Board
 {
@@ -25,6 +26,7 @@ public:
     }
 
     // draws start board
+    // Создаём окно SDL, загружаем текстуры, формируем начальную расстановку.
     int start_draw()
     {
         if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
@@ -44,6 +46,7 @@ public:
             W -= W / 15;
             H = W;
         }
+        // Создаём изменяемое по размеру окно шахматной доски.
         win = SDL_CreateWindow("Checkers", 0, H / 30, W, H, SDL_WINDOW_RESIZABLE);
         if (win == nullptr)
         {
@@ -56,6 +59,7 @@ public:
             print_exception("SDL_CreateRenderer can't create renderer");
             return 1;
         }
+        // Загружаем текстуры доски и фигур из каталога Textures.
         board = IMG_LoadTexture(ren, board_path.c_str());
         w_piece = IMG_LoadTexture(ren, piece_white_path.c_str());
         b_piece = IMG_LoadTexture(ren, piece_black_path.c_str());
@@ -73,6 +77,7 @@ public:
         rerender();
         return 0;
     }
+// Начинаем новую партию: очищаем историю и восстанавливаем исходную позицию.
 
     void redraw()
     {
@@ -83,6 +88,7 @@ public:
         clear_active();
         clear_highlight();
     }
+// Применяем ход, в том числе удаляем шашку, взятую при прыжке.
 
     void move_piece(move_pos turn, const int beat_series = 0)
     {
@@ -92,6 +98,7 @@ public:
         }
         move_piece(turn.x, turn.y, turn.x2, turn.y2, beat_series);
     }
+// Перемещаем фигуру, проверяем допустимость клеток и превращение в дамку.
 
     void move_piece(const POS_T i, const POS_T j, const POS_T i2, const POS_T j2, const int beat_series = 0)
     {
@@ -109,12 +116,14 @@ public:
         drop_piece(i, j);
         add_history(beat_series);
     }
+// Очищаем клетку доски и обновляем изображение.
 
     void drop_piece(const POS_T i, const POS_T j)
     {
         mtx[i][j] = 0;
         rerender();
     }
+// Превращаем простую шашку в дамку при достижении последней горизонтали.
 
     void turn_into_queen(const POS_T i, const POS_T j)
     {
@@ -125,10 +134,12 @@ public:
         mtx[i][j] += 2;
         rerender();
     }
+    // Возвращаем копию текущей позиции для моделирования ходов минимаксом.
     vector<vector<POS_T>> get_board() const
     {
         return mtx;
     }
+// Подсвечиваем клетки доступных ходов.
 
     void highlight_cells(vector<pair<POS_T, POS_T>> cells)
     {
@@ -139,6 +150,7 @@ public:
         }
         rerender();
     }
+// Убираем подсветку после выбора или смены хода.
 
     void clear_highlight()
     {
@@ -148,6 +160,7 @@ public:
         }
         rerender();
     }
+// Выделяем активную фигуру, выбранную игроком.
 
     void set_active(const POS_T x, const POS_T y)
     {
@@ -155,6 +168,7 @@ public:
         active_y = y;
         rerender();
     }
+// Сбрасываем выделение фигуры.
 
     void clear_active()
     {
@@ -167,6 +181,7 @@ public:
     {
         return is_highlighted_[x][y];
     }
+// Отменяем целый предыдущий ход по сохранённым состояниям, включая цепочки взятий.
 
     void rollback()
     {
@@ -180,6 +195,7 @@ public:
         clear_highlight();
         clear_active();
     }
+// Выводим экран окончания партии.
 
     void show_final(const int res)
     {
@@ -188,11 +204,13 @@ public:
     }
 
     // use if window size changed
+    // Пересчитываем размеры изображения после изменения размеров окна.
     void reset_window_size()
     {
         SDL_GetRendererOutputSize(ren, &W, &H);
         rerender();
     }
+// Освобождаем ресурсы SDL: текстуры, рендерер и окно.
 
     void quit()
     {
@@ -215,12 +233,14 @@ public:
     }
 
 private:
+    // Сохраняем новую позицию и длину серии взятий для возможности отката.
     void add_history(const int beat_series = 0)
     {
         history_mtx.push_back(mtx);
         history_beat_series.push_back(beat_series);
     }
     // function to make start matrix
+    // Расставляем 12 белых и 12 чёрных шашек на стандартных тёмных клетках.
     void make_start_mtx()
     {
         for (POS_T i = 0; i < 8; ++i)
@@ -238,6 +258,7 @@ private:
     }
 
     // function that re-draw all the textures
+    // Полная перерисовка: доска, фигуры, подсветка, кнопки, результат.
     void rerender()
     {
         // draw board

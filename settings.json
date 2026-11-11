@@ -1,19 +1,30 @@
 {
     "WindowSize": {
+        "_comment_Width": "Ширина окна в пикселях; 0 означает автоматический полноэкранный размер.",
         "Width": 0,
+        "_comment_Hight": "Высота окна в пикселях; в исходном проекте имя ключа содержит Hight.",
         "Hight": 0
     },
     "Bot": {
+        "_comment_IsWhiteBot": "true: белыми играет бот; false: человек.",
         "IsWhiteBot": false,
+        "_comment_IsBlackBot": "true: чёрными играет бот; false: человек.",
         "IsBlackBot": true,
+        "_comment_WhiteBotLevel": "Глубина анализа белого бота: количество полуходов равно уровню + 1.",
         "WhiteBotLevel": 0,
+        "_comment_BlackBotLevel": "Глубина анализа чёрного бота: количество полуходов равно уровню + 1.",
         "BlackBotLevel": 5,
+        "_comment_BotScoringType": "NumberOnly: счёт шашек; NumberAndPotential: учитывается также продвижение.",
         "BotScoringType": "NumberAndPotential",
+        "_comment_BotDelayMS": "Минимальная задержка одного хода бота в миллисекундах.",
         "BotDelayMS": 0,
+        "_comment_NoRandom": "true делает порядок перебора ходов воспроизводимым.",
         "NoRandom": false,
+        "_comment_Optimization": "O0: полный перебор; O1: альфа-бета отсечение; O2 заявлен в исходном проекте.",
         "Optimization": "O1"
     },
     "Game": {
+        "_comment_MaxNumTurns": "Максимальное число ходов до фиксации ничьей.",
         "MaxNumTurns": 120
     }
 }

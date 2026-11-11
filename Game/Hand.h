@@ -6,12 +6,14 @@
 #include "Board.h"
 
 // methods for hands
+// Класс обрабатывает ввод мыши, закрытие окна и игровые кнопки.
 class Hand
 {
   public:
     Hand(Board *board) : board(board)
     {
     }
+    // Возвращает тип действия и координаты клетки игрового поля.
     tuple<Response, POS_T, POS_T> get_cell() const
     {
         SDL_Event windowEvent;
@@ -20,6 +22,7 @@ class Hand
         int xc = -1, yc = -1;
         while (true)
         {
+            // Обрабатываем следующее событие SDL из очереди.
             if (SDL_PollEvent(&windowEvent))
             {
                 switch (windowEvent.type)
@@ -27,15 +30,18 @@ class Hand
                 case SDL_QUIT:
                     resp = Response::QUIT;
                     break;
+                // Преобразуем координаты щелчка в строку и столбец доски.
                 case SDL_MOUSEBUTTONDOWN:
                     x = windowEvent.motion.x;
                     y = windowEvent.motion.y;
                     xc = int(y / (board->H / 10) - 1);
                     yc = int(x / (board->W / 10) - 1);
+                    // Область вверху слева — кнопка отмены последнего хода.
                     if (xc == -1 && yc == -1 && board->history_mtx.size() > 1)
                     {
                         resp = Response::BACK;
                     }
+                    // Область вверху справа — кнопка новой партии.
                     else if (xc == -1 && yc == 8)
                     {
                         resp = Response::REPLAY;
@@ -63,6 +69,7 @@ class Hand
         }
         return {resp, xc, yc};
     }
+// После завершения партии ждём нажатие «повторить» либо закрытие приложения.
 
     Response wait() const
     {

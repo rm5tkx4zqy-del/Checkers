@@ -18,9 +18,12 @@ class Game
     }
 
     // to start checkers
+    // Основной игровой цикл: подготовка партии, чередование ходов и определение результата.
     int play()
     {
+        // Запоминаем время начала партии для журнала.
         auto start = chrono::steady_clock::now();
+        // При повторной игре сбрасываем логику, перечитываем настройки и создаём начальную доску.
         if (is_replay)
         {
             logic = Logic(&board, &config);
@@ -36,13 +39,17 @@ class Game
         int turn_num = -1;
         bool is_quit = false;
         const int Max_turns = config("Game", "MaxNumTurns");
+        // Ходы выполняются до завершения игры или установленного ограничения.
         while (++turn_num < Max_turns)
         {
             beat_series = 0;
+            // Получаем разрешённые ходы активной стороны; пустой список означает конец партии.
             logic.find_turns(turn_num % 2);
             if (logic.turns.empty())
                 break;
+            // Устанавливаем глубину поиска из настроек для текущего цвета.
             logic.Max_depth = config("Bot", string((turn_num % 2) ? "Black" : "White") + string("BotLevel"));
+            // Разделяем ручной ход игрока и автоматический ход бота.
             if (!config("Bot", string("Is") + string((turn_num % 2) ? "Black" : "White") + string("Bot")))
             {
                 auto resp = player_turn(turn_num % 2);
@@ -72,6 +79,7 @@ class Game
                     beat_series = 0;
                 }
             }
+            // Если цветом управляет бот, запускаем поиск и выполнение лучшего хода.
             else
                 bot_turn(turn_num % 2);
         }
@@ -93,6 +101,7 @@ class Game
         {
             res = 1;
         }
+        // Показываем на доске результат: победа белых, чёрных или ничья.
         board.show_final(res);
         auto resp = hand.wait();
         if (resp == Response::REPLAY)
@@ -104,17 +113,21 @@ class Game
     }
 
   private:
+    // Ход бота: поиск оптимального полного хода, соблюдение задержки и анимация взятий.
     void bot_turn(const bool color)
     {
         auto start = chrono::steady_clock::now();
 
         auto delay_ms = config("Bot", "BotDelayMS");
         // new thread for equal delay for each turn
+        // Задержка выполняется параллельно вычислению, чтобы сохранить заданный темп.
         thread th(SDL_Delay, delay_ms);
+        // Алгоритм минимакс возвращает цепочку движений, в том числе последовательные взятия.
         auto turns = logic.find_best_turns(color);
         th.join();
         bool is_first = true;
         // making moves
+        // Последовательно применяем все действия выбранного хода к графической доске.
         for (auto turn : turns)
         {
             if (!is_first)
@@ -131,6 +144,7 @@ class Game
         fout << "Bot turn time: " << (int)chrono::duration<double, milli>(end - start).count() << " millisec\n";
         fout.close();
     }
+// Ручной ход: подсветка допустимых шашек, выбор клетки и обработка серии взятий.
 
     Response player_turn(const bool color)
     {
@@ -140,12 +154,14 @@ class Game
         {
             cells.emplace_back(turn.x, turn.y);
         }
+        // Показываем игроку разрешённые начальные клетки или продолжения взятия.
         board.highlight_cells(cells);
         move_pos pos = {-1, -1, -1, -1};
         POS_T x = -1, y = -1;
         // trying to make first move
         while (true)
         {
+            // Ожидаем щелчок мыши или команду управления окном.
             auto resp = hand.get_cell();
             if (get<0>(resp) != Response::CELL)
                 return get<0>(resp);
@@ -195,10 +211,12 @@ class Game
         }
         board.clear_highlight();
         board.clear_active();
+        // Перемещаем шашку, при необходимости удаляем побитую фигуру.
         board.move_piece(pos, pos.xb != -1);
         if (pos.xb == -1)
             return Response::OK;
         // continue beating while can
+        // Если произошло взятие, проверяем возможность продолжить его той же шашкой.
         beat_series = 1;
         while (true)
         {

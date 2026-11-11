@@ -12,6 +12,7 @@ class Config
     {
         reload();
     }
+// Перечитывает settings.json с диска и обновляет параметры игры при перезапуске партии.
 
     void reload()
     {
@@ -19,6 +20,8 @@ class Config
         fin >> config;
         fin.close();
     }
+// Оператор () позволяет получить настройку как config("Раздел", "Имя");
+// возвращаемое значение берётся из загруженного JSON.
 
     auto operator()(const string &setting_dir, const string &setting_name) const
     {
